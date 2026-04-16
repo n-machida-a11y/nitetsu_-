@@ -77,7 +77,7 @@ function processNewEntries() {
         const key = formattedDate + '|' + manufacturer + ':' + trader + '|' + itemName + '|' + trader;
 
         if (!processedEntries.has(key)) {
-          const composedCol2 = processingCol2 + itemName;
+          const composedCol2 = manufacturer + ':' + trader + itemName;
 
           // ★ メモリ上のMapから前回単価を取得（RPC 0回）
           const previousPriceValue = previousPriceMap.get(composedCol2) || 0;
