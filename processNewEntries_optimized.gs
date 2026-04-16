@@ -74,7 +74,7 @@ function processNewEntries() {
     traderList.forEach(trader => {
       itemList.forEach(itemName => {
         // ★ セパレータ「|」で意図しないキー衝突を防止
-        const key = formattedDate + '|' + processingCol1 + '|' + itemName + '|' + trader;
+        const key = formattedDate + '|' + manufacturer + ':' + trader + '|' + itemName + '|' + trader;
 
         if (!processedEntries.has(key)) {
           const composedCol2 = processingCol2 + itemName;
