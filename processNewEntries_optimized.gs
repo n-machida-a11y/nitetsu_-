@@ -1,3 +1,6 @@
+// ★ スプレッドシートIDを1箇所で管理（変更はここだけ）
+const SPREADSHEET_ID = "1fVClsPMoUzeExsrkIne4_q5QSz4c_v1lGHTN_gqVbSE";
+
 /**
  * 単価一括登録 → 単価履歴 転記処理（最適化版）
  *
@@ -12,9 +15,8 @@
  */
 function processNewEntries() {
   const startTime = new Date();
-  const spreadSheetId = "1fVClsPMoUzeExsrkIne4_q5QSz4c_v1lGHTN_gqVbSE";
 
-  const ss = SpreadsheetApp.openById(spreadSheetId);
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   const bulkRegisterSheet = ss.getSheetByName('単価一括登録');
   const priceHistorySheet = ss.getSheetByName('単価履歴');
 
@@ -198,7 +200,7 @@ function batchUpdateTransferFlags(bulkRegisterSheet, rowNumbers) {
 function autoFillFormulas(priceHistorySheet) {
   // 引数なしで呼ばれた場合の後方互換
   if (!priceHistorySheet) {
-    const ss = SpreadsheetApp.openById("1fVClsPMoUzeExsrkIne4_q5QSz4c_v1lGHTN_gqVbSE");
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     priceHistorySheet = ss.getSheetByName('単価履歴');
   }
 
