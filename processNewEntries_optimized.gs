@@ -123,8 +123,8 @@ function processNewEntries() {
       .getRange(priceHistorySheet.getLastRow() + 1, 1, newHistoryEntries.length, newHistoryEntries[0].length)
       .setValues(newHistoryEntries);
 
-    // オートフィル（シートオブジェクトを再利用）
-    autoFillFormulas(priceHistorySheet);
+    // オートフィル（新規追加分だけにコピー）
+    autoFillFormulas(priceHistorySheet, newHistoryEntries.length);
   }
 
   // ━━━ 転記済フラグを一括更新（元: 行ごとにsetValue → 一括setValues） ━━━
@@ -195,9 +195,11 @@ function batchUpdateTransferFlags(bulkRegisterSheet, rowNumbers) {
 }
 
 /**
- * 数式のオートフィル（最適化版: シートオブジェクトを引数で受け取る）
+ * 数式のオートフィル（最適化版: 新規追加行だけにコピー）
+ * @param {Sheet} priceHistorySheet
+ * @param {number} newRowCount - 今回追加した行数（省略時は全行対象）
  */
-function autoFillFormulas(priceHistorySheet) {
+function autoFillFormulas(priceHistorySheet, newRowCount) {
   // 引数なしで呼ばれた場合の後方互換
   if (!priceHistorySheet) {
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
@@ -212,12 +214,15 @@ function autoFillFormulas(priceHistorySheet) {
     return;
   }
 
+  // 新規追加行の開始行を算出（指定がなければ2行目から全行）
+  const startRow = newRowCount ? lastRow - newRowCount + 1 : 2;
+
   columnsToAutoFill.forEach(columnLetter => {
     const formulaRange = priceHistorySheet.getRange(columnLetter + '2');
     const formula = formulaRange.getFormula();
 
     if (formula) {
-      const fillRange = priceHistorySheet.getRange(columnLetter + '2:' + columnLetter + lastRow);
+      const fillRange = priceHistorySheet.getRange(columnLetter + startRow + ':' + columnLetter + lastRow);
       formulaRange.copyTo(fillRange, { contentsOnly: false });
     }
   });
