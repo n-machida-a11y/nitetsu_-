@@ -162,9 +162,10 @@ function autoFillFormulas(priceHistorySheet, newRowCount) {
 
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 1回だけ実行：コピースプシにデモデータを投入
-//   - 「単価履歴」「単価一括登録」シートが既に存在している前提
-//   - 既存データは clear() で消えるので注意
+// コピースプシにデモデータを追記投入（既存データは触らない）
+//   - 「単価履歴」と「単価一括登録」の末尾に行を追加するだけ
+//   - ヘッダは既に存在している前提（書き換えない）
+//   - 再実行すると同じ内容が重複追加される点に注意
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function setupDemoData() {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
@@ -176,27 +177,22 @@ function setupDemoData() {
     return;
   }
 
-  const historyHeader = ['id','日付','メーカー','商社','処理列1','品名','処理列2','単価','単価上げ下げ','前回単価','スポット','スポット期間','備考','最新フラグ','タイムスタンプ','検索列'];
-  const bulkHeader = ['id','日付','メーカー','商社','処理列1','品名','処理列2','単価','単価上げ下げ','前回単価','スポット','スポット期間','タイムスタンプ','転記済'];
-
-  historySheet.clear();
-  historySheet.getRange(1, 1, 1, historyHeader.length).setValues([historyHeader]);
   const historyRows = [
     ['hist001', '2026/04/01', '中山製鋼', '阪和', '中山製鋼:阪和', 'ＨＳ２', '中山製鋼:阪和ＨＳ２', 50.0, 0, 50.0, '', '', '', '', '2026/04/01 10:00:00', '中山製鋼:阪和ＨＳ２'],
     ['hist002', '2026/04/01', '中山製鋼', '豊通', '中山製鋼:豊通', 'ＨＳ２', '中山製鋼:豊通ＨＳ２', 48.0, 0, 48.0, '', '', '', '', '2026/04/01 10:00:00', '中山製鋼:豊通ＨＳ２'],
     ['hist003', '2026/04/01', '中山製鋼', '阪和', '中山製鋼:阪和', 'ＨＳ１(単体H1/電特A/HS))', '中山製鋼:阪和ＨＳ１(単体H1/電特A/HS))', 55.0, 0, 55.0, '', '', '', '', '2026/04/01 10:00:00', '中山製鋼:阪和ＨＳ１(単体H1/電特A/HS))'],
     ['hist004', '2026/04/01', '中山製鋼', '豊通', '中山製鋼:豊通', 'ＨＳ１(単体H1/電特A/HS))', '中山製鋼:豊通ＨＳ１(単体H1/電特A/HS))', 53.0, 0, 53.0, '', '', '', '', '2026/04/01 10:00:00', '中山製鋼:豊通ＨＳ１(単体H1/電特A/HS))']
   ];
-  historySheet.getRange(2, 1, historyRows.length, historyHeader.length).setValues(historyRows);
+  const historyStart = historySheet.getLastRow() + 1;
+  historySheet.getRange(historyStart, 1, historyRows.length, historyRows[0].length).setValues(historyRows);
 
-  bulkSheet.clear();
-  bulkSheet.getRange(1, 1, 1, bulkHeader.length).setValues([bulkHeader]);
   const bulkRows = [
     ['test001', '2026/04/16', '中山製鋼', '阪和', '中山製鋼:阪和', 'ＨＳ２', '中山製鋼:阪和ＨＳ２', '', 0.5, '', '', '', '2026/04/16 10:00:00', ''],
     ['test002', '2026/04/16', '中山製鋼', '阪和 , 豊通', '中山製鋼:阪和 , 豊通', 'ＨＳ１(単体H1/電特A/HS)) , ＨＳ２', '中山製鋼:阪和 , 豊通ＨＳ１(単体H1/電特A/HS)) , ＨＳ２', '', 1.0, '', '', '', '2026/04/16 10:01:00', ''],
     ['test003', '2026/04/16', '中山製鋼', '阪和', '中山製鋼:阪和', 'ＨＳ２', '中山製鋼:阪和ＨＳ２', '', 0.5, '', '', '', '2026/04/16 10:02:00', '']
   ];
-  bulkSheet.getRange(2, 1, bulkRows.length, bulkHeader.length).setValues(bulkRows);
+  const bulkStart = bulkSheet.getLastRow() + 1;
+  bulkSheet.getRange(bulkStart, 1, bulkRows.length, bulkRows[0].length).setValues(bulkRows);
 
-  Logger.log(`デモデータ投入完了: 単価履歴=${historyRows.length}行, 単価一括登録=${bulkRows.length}行`);
+  Logger.log(`デモデータ追加完了: 単価履歴=${historyRows.length}行を行${historyStart}以降に追加, 単価一括登録=${bulkRows.length}行を行${bulkStart}以降に追加`);
 }
