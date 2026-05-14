@@ -149,9 +149,12 @@ function batchUpdateTransferFlags(bulkRegisterSheet, rowNumbers) {
 function updateLatestFlags(historySheet, historyData, newHistoryEntries) {
   const allRows = historyData.concat(newHistoryEntries);
 
-  // Dateオブジェクトは === が参照比較になるため、比較用に数値化する
+  // Sheetsのセマンティクスに合わせて値を数値化:
+  //   - 空セル/null/undefined → 0（Sheetsは空セルを0として比較するため）
+  //   - Date → getTime() で数値化（参照比較を回避）
+  //   - その他はそのまま
   const toComparable = (v) => {
-    if (v === '' || v === null || v === undefined) return null;
+    if (v === '' || v === null || v === undefined) return 0;
     if (v instanceof Date) return v.getTime();
     return v;
   };
@@ -161,7 +164,6 @@ function updateLatestFlags(historySheet, historyData, newHistoryEntries) {
   allRows.forEach(row => {
     const key = (row[4] || '') + '|' + (row[5] || '');
     const oVal = toComparable(row[14]);
-    if (oVal === null) return;
     const curr = maxOMap.get(key);
     if (curr === undefined || oVal > curr) {
       maxOMap.set(key, oVal);
@@ -169,12 +171,13 @@ function updateLatestFlags(historySheet, historyData, newHistoryEntries) {
   });
 
   // 各行のN列の値（●か空）
-  // 値比較なので、同じ最大Oを持つ行は全部に ● がつく（MAXIFS数式と同セマンティクス）
+  // 自分のO == その(E,F)の最大O → ● （MAXIFS数式と同セマンティクス）
+  // 空O同士の比較も 0=0 で ● になる（Sheetsの挙動に合わせる）
   const desiredN = allRows.map(row => {
     const key = (row[4] || '') + '|' + (row[5] || '');
     const oVal = toComparable(row[14]);
     const max = maxOMap.get(key);
-    return [(oVal !== null && oVal === max) ? '●' : ''];
+    return [oVal === max ? '●' : ''];
   });
 
   // N列(14列目)に一括書き込み
@@ -235,7 +238,7 @@ function compareLatestFlags() {
   const verifyData = verifySheet.getRange(2, 1, verifyLastRow - 1, 16).getValues();
 
   const toComparable = (v) => {
-    if (v === '' || v === null || v === undefined) return null;
+    if (v === '' || v === null || v === undefined) return 0;
     if (v instanceof Date) return v.getTime();
     return v;
   };
