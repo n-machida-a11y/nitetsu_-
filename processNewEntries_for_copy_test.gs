@@ -87,6 +87,9 @@ function processNewEntries() {
 
     autoFillFormulas(priceHistorySheet, newHistoryEntries.length);
     t('autoFillFormulas 完了');
+
+    updateLatestFlags(priceHistorySheet, historyData, newHistoryEntries);
+    t('N列(最新フラグ)更新');
   }
 
   if (processedBulkRowNumbers.length > 0) {
@@ -133,6 +136,42 @@ function batchUpdateTransferFlags(bulkRegisterSheet, rowNumbers) {
     if (rowNumberSet.has(i + 1)) flagValues[i][0] = 1;
   }
   flagRange.setValues(flagValues);
+}
+
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// N列(最新フラグ●)を計算して書き戻す
+//   - 元のper-row MAXIFS数式と同じセマンティクス:
+//     「(E,F)組合せのうち、自分のOがその組合せの最大Oと一致 → ●」
+//   - 数式を使わずGASでO(N)で計算→1回のsetValuesで書き込み
+//   - 単価履歴シートにN列の数式が無い前提（事前に値貼り付けで撤去済）
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function updateLatestFlags(historySheet, historyData, newHistoryEntries) {
+  const allRows = historyData.concat(newHistoryEntries);
+
+  // (E|F) -> 最大のO
+  const maxOMap = new Map();
+  allRows.forEach(row => {
+    const key = (row[4] || '') + '|' + (row[5] || '');
+    const o = row[14];
+    if (o !== '' && o !== null && o !== undefined) {
+      const curr = maxOMap.get(key);
+      if (curr === undefined || o > curr) {
+        maxOMap.set(key, o);
+      }
+    }
+  });
+
+  // 各行のN列の値（●か空）
+  const desiredN = allRows.map(row => {
+    const key = (row[4] || '') + '|' + (row[5] || '');
+    const o = row[14];
+    const max = maxOMap.get(key);
+    return [(o !== '' && o !== null && o !== undefined && o === max) ? '●' : ''];
+  });
+
+  // N列(14列目)に一括書き込み
+  historySheet.getRange(2, 14, desiredN.length, 1).setValues(desiredN);
 }
 
 
