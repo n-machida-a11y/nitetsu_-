@@ -162,6 +162,43 @@ function autoFillFormulas(priceHistorySheet, newRowCount) {
 
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 本番スプシ vs コピースプシ の読み取り速度ベンチマーク
+//   - 書き込みはせず、開く / シート取得 / getValues の各時間を比較するだけ
+//   - 本番が極端に遅ければ「本番スプシ自体が重い」ことが確定する
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function benchmarkRead() {
+  const targets = [
+    { label: 'コピー', id: '1a07gF0kXMNKNufTzaha0UhttuoF14svy7RgTeXfoaLE' },
+    { label: '本番',   id: '1fVClsPMoUzeExsrkIne4_q5QSz4c_v1lGHTN_gqVbSE' }
+  ];
+
+  targets.forEach(({ label, id }) => {
+    const t0 = new Date();
+    const ss = SpreadsheetApp.openById(id);
+    const t1 = new Date();
+
+    const historySheet = ss.getSheetByName('単価履歴');
+    const bulkSheet = ss.getSheetByName('単価一括登録');
+    const t2 = new Date();
+
+    const historyData = historySheet.getDataRange().getValues();
+    const t3 = new Date();
+
+    const bulkData = bulkSheet.getDataRange().getValues();
+    const t4 = new Date();
+
+    Logger.log(
+      `[${label}] openById=${((t1 - t0) / 1000).toFixed(2)}s, ` +
+      `シート取得=${((t2 - t1) / 1000).toFixed(2)}s, ` +
+      `単価履歴 getValues=${((t3 - t2) / 1000).toFixed(2)}s (${historyData.length}行), ` +
+      `単価一括登録 getValues=${((t4 - t3) / 1000).toFixed(2)}s (${bulkData.length}行), ` +
+      `合計=${((t4 - t0) / 1000).toFixed(2)}s`
+    );
+  });
+}
+
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // コピースプシにデモデータを追記投入（既存データは触らない）
 //   - 「単価履歴」と「単価一括登録」の末尾に行を追加するだけ
 //   - ヘッダは既に存在している前提（書き換えない）
