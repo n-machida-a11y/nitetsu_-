@@ -3,7 +3,8 @@
 //   - processNewEntries にタイミング計測を仕込んだ版
 //   - setupDemoData() でテストデータを一括投入
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-const SPREADSHEET_ID = "1a07gF0kXMNKNufTzaha0UhttuoF14svy7RgTeXfoaLE";
+// 新コピー（本番からまるごとコピーした検証用スプシ）
+const SPREADSHEET_ID = "1cptWC-9wY2s9ClVM94axWVMnHi60AbZcNuVOx1Jp5-8";
 
 
 function processNewEntries() {
@@ -168,8 +169,9 @@ function autoFillFormulas(priceHistorySheet, newRowCount) {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function benchmarkRead() {
   const targets = [
-    { label: 'コピー', id: '1a07gF0kXMNKNufTzaha0UhttuoF14svy7RgTeXfoaLE' },
-    { label: '本番',   id: '1fVClsPMoUzeExsrkIne4_q5QSz4c_v1lGHTN_gqVbSE' }
+    { label: '旧コピー(816行)', id: '1a07gF0kXMNKNufTzaha0UhttuoF14svy7RgTeXfoaLE' },
+    { label: '新コピー(本番相当)', id: '1cptWC-9wY2s9ClVM94axWVMnHi60AbZcNuVOx1Jp5-8' },
+    { label: '本番',              id: '1fVClsPMoUzeExsrkIne4_q5QSz4c_v1lGHTN_gqVbSE' }
   ];
 
   targets.forEach(({ label, id }) => {
