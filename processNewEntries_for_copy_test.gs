@@ -230,59 +230,99 @@ function compareLatestFlags() {
     return;
   }
 
-  // A列(id)とN列(最新フラグ)だけ取得
-  const prodIds = prodSheet.getRange(2, 1, prodLastRow - 1, 1).getValues().map(r => r[0]);
-  const prodN = prodSheet.getRange(2, 14, prodLastRow - 1, 1).getValues().map(r => r[0]);
-  const verifyIds = verifySheet.getRange(2, 1, verifyLastRow - 1, 1).getValues().map(r => r[0]);
-  const verifyN = verifySheet.getRange(2, 14, verifyLastRow - 1, 1).getValues().map(r => r[0]);
+  // 全列を読む（A〜P = 16列）
+  const prodData = prodSheet.getRange(2, 1, prodLastRow - 1, 16).getValues();
+  const verifyData = verifySheet.getRange(2, 1, verifyLastRow - 1, 16).getValues();
 
-  // 検証側を id -> N のMapに
-  const verifyMap = new Map();
-  for (let i = 0; i < verifyIds.length; i++) {
-    verifyMap.set(verifyIds[i], verifyN[i]);
-  }
+  const toComparable = (v) => {
+    if (v === '' || v === null || v === undefined) return null;
+    if (v instanceof Date) return v.getTime();
+    return v;
+  };
+  const fmtO = (v) => {
+    if (v === '' || v === null || v === undefined) return '<empty>';
+    if (v instanceof Date) return Utilities.formatDate(v, 'JST', 'yyyy-MM-dd HH:mm:ss');
+    return String(v);
+  };
 
-  // 本番をループして比較
+  // 検証データの (id -> 行情報) Map
+  const verifyById = new Map();
+  verifyData.forEach((row, i) => {
+    verifyById.set(row[0], { row, sheetRow: i + 2 });
+  });
+
+  // (E|F) -> maxO の比較値 を 本番側 / 検証側 で構築
+  const buildMaxOByEF = (data) => {
+    const map = new Map();
+    data.forEach(row => {
+      const key = (row[4] || '') + '|' + (row[5] || '');
+      const oVal = toComparable(row[14]);
+      if (oVal === null) return;
+      const curr = map.get(key);
+      if (curr === undefined || oVal > curr) {
+        map.set(key, oVal);
+      }
+    });
+    return map;
+  };
+  const prodMaxOByEF = buildMaxOByEF(prodData);
+  const verifyMaxOByEF = buildMaxOByEF(verifyData);
+
   let matchCount = 0;
   let mismatchCount = 0;
   let onlyInProduction = 0;
-  const mismatchSamples = [];
+  const mismatches = [];
 
-  for (let i = 0; i < prodIds.length; i++) {
-    const id = prodIds[i];
-    if (!verifyMap.has(id)) {
+  prodData.forEach((pRow, i) => {
+    const id = pRow[0];
+    if (!verifyById.has(id)) {
       onlyInProduction++;
-      continue;
+      return;
     }
-    const vN = verifyMap.get(id);
-    if ((prodN[i] || '') === (vN || '')) {
+    const v = verifyById.get(id);
+    const pN = pRow[13] || '';
+    const vN = v.row[13] || '';
+    if (pN === vN) {
       matchCount++;
     } else {
       mismatchCount++;
-      if (mismatchSamples.length < 20) {
-        mismatchSamples.push({
-          row: i + 2,
+      if (mismatches.length < 10) {
+        const ef = (pRow[4] || '') + '|' + (pRow[5] || '');
+        mismatches.push({
+          prodRow: i + 2,
+          verifyRow: v.sheetRow,
           id: String(id).substring(0, 12),
-          prod: prodN[i],
-          verify: vN
+          ef: ef.substring(0, 50),
+          pN: pN || '<空>',
+          vN: vN || '<空>',
+          pO: fmtO(pRow[14]),
+          vO: fmtO(v.row[14]),
+          pMaxO: prodMaxOByEF.has(ef) ? fmtO(new Date(prodMaxOByEF.get(ef))) : '<無>',
+          vMaxO: verifyMaxOByEF.has(ef) ? fmtO(new Date(verifyMaxOByEF.get(ef))) : '<無>',
+          pE: pRow[4], vE: v.row[4], pF: pRow[5], vF: v.row[5]
         });
       }
     }
-  }
+  });
 
-  // 検証側にしかないidの数
-  const prodIdSet = new Set(prodIds);
+  const prodIdSet = new Set(prodData.map(r => r[0]));
   let onlyInVerify = 0;
-  for (let i = 0; i < verifyIds.length; i++) {
-    if (!prodIdSet.has(verifyIds[i])) onlyInVerify++;
-  }
+  verifyData.forEach(row => {
+    if (!prodIdSet.has(row[0])) onlyInVerify++;
+  });
 
   Logger.log(`一致: ${matchCount} / 不一致: ${mismatchCount} / 本番のみ: ${onlyInProduction} / 検証のみ: ${onlyInVerify}`);
 
-  if (mismatchSamples.length > 0) {
-    Logger.log(`--- 不一致サンプル (${Math.min(mismatchCount, 20)}件まで表示) ---`);
-    mismatchSamples.forEach(m => {
-      Logger.log(`  検証行${m.row} id=${m.id}... 本番N='${m.prod}' / 検証N='${m.verify}'`);
+  if (mismatches.length > 0) {
+    Logger.log(`--- 不一致詳細 (最大10件) ---`);
+    mismatches.forEach((m, idx) => {
+      Logger.log(`[${idx + 1}] 本番行${m.prodRow} / 検証行${m.verifyRow} id=${m.id}...`);
+      Logger.log(`    ef="${m.ef}"`);
+      Logger.log(`    E: 本番="${m.pE}" 検証="${m.vE}" ${m.pE === m.vE ? '一致' : '★差異'}`);
+      Logger.log(`    F: 本番="${m.pF}" 検証="${m.vF}" ${m.pF === m.vF ? '一致' : '★差異'}`);
+      Logger.log(`    O: 本番=${m.pO} 検証=${m.vO} ${m.pO === m.vO ? '一致' : '★差異'}`);
+      Logger.log(`    N: 本番=${m.pN} 検証=${m.vN}`);
+      Logger.log(`    maxO(ef): 本番=${m.pMaxO} 検証=${m.vMaxO}`);
     });
   } else if (mismatchCount === 0) {
     Logger.log('★ 両シートで突き合わせた全行のN列が完全一致');
