@@ -202,6 +202,88 @@ function autoFillFormulas(priceHistorySheet, newRowCount) {
 
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 本番スプシ vs 新コピースプシ の N列(最新フラグ●)を id基準で突き合わせ
+//   - A列(id)をキーに、両シートの N列を比較
+//   - 一致/不一致/片方にだけ存在する行 をカウント
+//   - 不一致サンプルを最大20件ログ出力
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function compareLatestFlags() {
+  const productionId = '1fVClsPMoUzeExsrkIne4_q5QSz4c_v1lGHTN_gqVbSE';
+  const verifyId = '1cptWC-9wY2s9ClVM94axWVMnHi60AbZcNuVOx1Jp5-8';
+
+  const prodSheet = SpreadsheetApp.openById(productionId).getSheetByName('単価履歴');
+  const verifySheet = SpreadsheetApp.openById(verifyId).getSheetByName('単価履歴');
+
+  const prodLastRow = prodSheet.getLastRow();
+  const verifyLastRow = verifySheet.getLastRow();
+  Logger.log(`本番: ${prodLastRow - 1}行, 検証: ${verifyLastRow - 1}行`);
+
+  if (prodLastRow <= 1 || verifyLastRow <= 1) {
+    Logger.log('片方のシートが空です');
+    return;
+  }
+
+  // A列(id)とN列(最新フラグ)だけ取得
+  const prodIds = prodSheet.getRange(2, 1, prodLastRow - 1, 1).getValues().map(r => r[0]);
+  const prodN = prodSheet.getRange(2, 14, prodLastRow - 1, 1).getValues().map(r => r[0]);
+  const verifyIds = verifySheet.getRange(2, 1, verifyLastRow - 1, 1).getValues().map(r => r[0]);
+  const verifyN = verifySheet.getRange(2, 14, verifyLastRow - 1, 1).getValues().map(r => r[0]);
+
+  // 検証側を id -> N のMapに
+  const verifyMap = new Map();
+  for (let i = 0; i < verifyIds.length; i++) {
+    verifyMap.set(verifyIds[i], verifyN[i]);
+  }
+
+  // 本番をループして比較
+  let matchCount = 0;
+  let mismatchCount = 0;
+  let onlyInProduction = 0;
+  const mismatchSamples = [];
+
+  for (let i = 0; i < prodIds.length; i++) {
+    const id = prodIds[i];
+    if (!verifyMap.has(id)) {
+      onlyInProduction++;
+      continue;
+    }
+    const vN = verifyMap.get(id);
+    if ((prodN[i] || '') === (vN || '')) {
+      matchCount++;
+    } else {
+      mismatchCount++;
+      if (mismatchSamples.length < 20) {
+        mismatchSamples.push({
+          row: i + 2,
+          id: String(id).substring(0, 12),
+          prod: prodN[i],
+          verify: vN
+        });
+      }
+    }
+  }
+
+  // 検証側にしかないidの数
+  const prodIdSet = new Set(prodIds);
+  let onlyInVerify = 0;
+  for (let i = 0; i < verifyIds.length; i++) {
+    if (!prodIdSet.has(verifyIds[i])) onlyInVerify++;
+  }
+
+  Logger.log(`一致: ${matchCount} / 不一致: ${mismatchCount} / 本番のみ: ${onlyInProduction} / 検証のみ: ${onlyInVerify}`);
+
+  if (mismatchSamples.length > 0) {
+    Logger.log(`--- 不一致サンプル (${Math.min(mismatchCount, 20)}件まで表示) ---`);
+    mismatchSamples.forEach(m => {
+      Logger.log(`  検証行${m.row} id=${m.id}... 本番N='${m.prod}' / 検証N='${m.verify}'`);
+    });
+  } else if (mismatchCount === 0) {
+    Logger.log('★ 両シートで突き合わせた全行のN列が完全一致');
+  }
+}
+
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 本番スプシ vs コピースプシ の読み取り速度ベンチマーク
 //   - 書き込みはせず、開く / シート取得 / getValues の各時間を比較するだけ
 //   - 本番が極端に遅ければ「本番スプシ自体が重い」ことが確定する
