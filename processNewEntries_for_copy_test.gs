@@ -149,25 +149,32 @@ function batchUpdateTransferFlags(bulkRegisterSheet, rowNumbers) {
 function updateLatestFlags(historySheet, historyData, newHistoryEntries) {
   const allRows = historyData.concat(newHistoryEntries);
 
-  // (E|F) -> 最大のO
+  // Dateオブジェクトは === が参照比較になるため、比較用に数値化する
+  const toComparable = (v) => {
+    if (v === '' || v === null || v === undefined) return null;
+    if (v instanceof Date) return v.getTime();
+    return v;
+  };
+
+  // (E|F) -> 最大Oの「比較可能な値」
   const maxOMap = new Map();
   allRows.forEach(row => {
     const key = (row[4] || '') + '|' + (row[5] || '');
-    const o = row[14];
-    if (o !== '' && o !== null && o !== undefined) {
-      const curr = maxOMap.get(key);
-      if (curr === undefined || o > curr) {
-        maxOMap.set(key, o);
-      }
+    const oVal = toComparable(row[14]);
+    if (oVal === null) return;
+    const curr = maxOMap.get(key);
+    if (curr === undefined || oVal > curr) {
+      maxOMap.set(key, oVal);
     }
   });
 
   // 各行のN列の値（●か空）
+  // 値比較なので、同じ最大Oを持つ行は全部に ● がつく（MAXIFS数式と同セマンティクス）
   const desiredN = allRows.map(row => {
     const key = (row[4] || '') + '|' + (row[5] || '');
-    const o = row[14];
+    const oVal = toComparable(row[14]);
     const max = maxOMap.get(key);
-    return [(o !== '' && o !== null && o !== undefined && o === max) ? '●' : ''];
+    return [(oVal !== null && oVal === max) ? '●' : ''];
   });
 
   // N列(14列目)に一括書き込み
